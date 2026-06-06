@@ -1,0 +1,5 @@
+Y Motion Screenshot Stitcher
+stitched=stitched_20260607_033847.png
+formula=overlap = viewport_height - Y
+
+seam1: Y=594, overlap=66, method=SIFT-RANSAC+native-verify, confidence=0.9870, inliers=227/230, original_y=594, calibration=+0, pixel_mae=0.000000, edge_mae=0.000000, match_ratio=1.0000, support=0.9375, score=0.000000, margin=0.043323, passed=True
