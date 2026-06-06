@@ -63,9 +63,9 @@ Each accepted seam is cropped once and appended once. The program does not warp,
 Python packages:
 
 ```text
-Pillow
-NumPy
-OpenCV
+Pillow>=10.0.0
+numpy>=1.24.0
+opencv-python-headless>=4.8.0
 ```
 
 ## Run
