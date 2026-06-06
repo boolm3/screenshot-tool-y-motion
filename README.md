@@ -1,68 +1,134 @@
-# Y Motion Screenshot Stitcher
+# Fixed Viewport Screenshot Stitcher
 
-A Windows screenshot stitcher built around one rule:
+A lightweight Windows tool for capturing and stitching long webpages, PDFs, code, tables, and images from a fixed screen region.
 
-```text
-overlap = viewport height - measured Y displacement
-```
+It compares adjacent screenshots at their original resolution, finds the exact vertical displacement, removes the duplicated overlap, and validates every seam before continuing.
 
-The program measures the net vertical displacement between two adjacent screenshots, removes the already captured overlap, and appends the new content exactly once.
+## Why It Works
 
-## 核心逻辑
+Earlier versions resized screenshots before searching for the vertical displacement. Scaling introduced interpolation and rounding errors: a correct displacement such as `Y=625` could be mistaken for `Y=622`.
 
-假设截图区域高度为 `600px`：
+The current version uses original image pixels throughout the dense search and final verification:
 
 ```text
-测得 Y=500 → 重合100px → 从当前图第101行开始追加
-测得 Y=580 → 重合20px  → 从当前图第21行开始追加
-测得 Y=30  → 重合570px → 从当前图第571行开始追加
+Original screenshots
+-> SIFT/ORB + RANSAC candidates
+-> dense original-pixel Y candidates
+-> original-resolution text, edge, and texture verification
+-> reject blank-region false matches
+-> lock the seam
+-> continue with the next screenshot
 ```
 
-每条接缝只执行：
+If a seam cannot be verified, stitching stops immediately. Unverified content is never appended to the result.
+
+## Stitching Formula
+
+For a capture region with height `H` and measured vertical displacement `Y`:
 
 ```text
-测量一次净Y
-→ overlap = 高度 - Y
-→ 裁切一次
-→ 拼接一次
-→ 质检一次
+overlap = H - Y
+new content starts at row overlap
 ```
 
-## Y测量
+Example for a `600px`-high region:
 
-1. SIFT 特征匹配。
-2. ORB 作为兼容兜底。
-3. RANSAC 统计多数匹配点共同认可的 Y 位移。
-4. 特征不足时使用密集像素位移作为兜底。
+```text
+Y=500 -> overlap=100px -> append from row 101
+Y=580 -> overlap=20px  -> append from row 21
+Y=30  -> overlap=570px -> append from row 571
+```
 
-程序不使用单应矩阵或透视变换，因此不会拉伸网页文字。
+Each accepted seam is cropped once and appended once. The program does not warp, resize, or stretch the screenshots.
 
-## 使用
+## Features
 
-双击：
+- Fixed-region screenshot capture
+- 90% transparent, mouse-click-through region overlay
+- One-pixel vertical region adjustment
+- Original-resolution dense Y search
+- SIFT feature matching with ORB fallback
+- RANSAC displacement consensus
+- Text, edge, and texture continuity verification
+- Blank-area false-match rejection
+- Seam-by-seam validation and early stopping
+- Seam preview images and detailed motion reports
+- Compact always-on-top control bar
+
+## Requirements
+
+- Windows
+- Python 3.10 or newer
+
+Python packages:
+
+```text
+Pillow
+NumPy
+OpenCV
+```
+
+## Run
+
+Double-click:
 
 ```text
 run_screenshot_tool.bat
 ```
 
-首次启动会自动安装缺失依赖。
+The launcher installs missing dependencies automatically.
 
-1. 点击 `选择区域`。
-2. 在真实屏幕预览上框选固定区域。
-3. 点击 `区域截屏`。
-4. 手动滚动网页或PDF，再次截图。
-5. 重复截图，最后点击 `完成拼接`。
+You can also run it manually:
 
-输出保存在 `captures`。
-
-## 接缝报告
-
-每次拼接会生成：
-
-```text
-stitched_时间.png
-stitched_时间_motion.txt
-stitched_时间_seam_01.png
+```powershell
+py -m pip install -r requirements.txt
+py screenshot_tool.py
 ```
 
-报告包含每条缝的 Y、重合量、测量方法、RANSAC置信度和像素质检结果。
+## Usage
+
+1. Click `选择`.
+2. Drag over the fixed screen region you want to capture.
+3. Click `截屏`.
+4. Manually scroll the webpage or PDF while keeping the selected region fixed.
+5. Click `截屏` again.
+6. Repeat until all required content has been captured.
+7. Click `拼接`.
+
+Use `微调` to move the selected region up or down by one pixel. Use `清空` to begin a new capture session.
+
+## Output
+
+Files are saved in `captures`:
+
+```text
+region_YYYYMMDD_HHMMSS.png
+stitched_YYYYMMDD_HHMMSS.png
+stitched_YYYYMMDD_HHMMSS_motion.txt
+stitched_YYYYMMDD_HHMMSS_seam_01.png
+```
+
+The motion report records:
+
+- selected Y displacement
+- overlap height
+- candidate source
+- SIFT/ORB confidence and inliers
+- original-pixel and edge errors
+- texture support
+- candidate score margin
+- final pass/fail result
+
+## Tests
+
+Run the regression suite with:
+
+```powershell
+py -m unittest -v test_motion_verifier.py
+```
+
+The tests cover exact displacement recovery, SIFT and dense candidates, original-pair stitching, blank-region rejection, early stopping, compact UI, and overlay click-through behavior.
+
+## License
+
+MIT
